@@ -1,0 +1,11 @@
+# torch is installed separately in the Dockerfile from the CPU index.
+# Do not add it here or you will pull the CUDA build.
+
+torch-geometric==2.5.3
+numpy==1.26.4
+pandas==2.2.2
+pyarrow==16.1.0
+yfinance==0.2.40
+
+# boto3 ships in the Lambda runtime. Pinning it here only bloats the
+# image and risks a version conflict with the managed runtime.

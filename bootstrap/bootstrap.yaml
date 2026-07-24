@@ -1,0 +1,154 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  One-time bootstrap for the Graph Attention Portfolio Optimizer.
+  Creates the Terraform state backend, the GitHub OIDC trust, and the
+  deploy role that GitHub Actions assumes. Run once, then never again.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub account or organisation that owns the repository
+    Default: FarazKhanTcd
+  GitHubRepo:
+    Type: String
+    Description: Repository name
+    Default: protraderbot
+  ProjectName:
+    Type: String
+    Default: gapo
+    Description: Short prefix applied to every resource name
+
+Resources:
+
+  # ---------------------------------------------------------------
+  # Terraform remote state
+  # ---------------------------------------------------------------
+  StateBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${ProjectName}-tfstate-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  StateLockTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "${ProjectName}-tfstate-lock"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+
+  # ---------------------------------------------------------------
+  # GitHub Actions identity
+  # ---------------------------------------------------------------
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-github-deploy"
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOIDCProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                # Only this repository, and only from a protected ref.
+                # Tighten to a single branch once you are past initial setup.
+                token.actions.githubusercontent.com:sub:
+                  !Sub "repo:${GitHubOrg}/${GitHubRepo}:*"
+      ManagedPolicyArns:
+        # Deliberately broad for a solo project. Narrow this before you
+        # ever share the account. See README section "Tightening IAM".
+        - arn:aws:iam::aws:policy/PowerUserAccess
+      Policies:
+        - PolicyName: iam-and-state
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PassRole
+                  - iam:TagRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${ProjectName}-*"
+              - Effect: Allow
+                Action: [s3:ListBucket, s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource:
+                  - !GetAtt StateBucket.Arn
+                  - !Sub "${StateBucket.Arn}/*"
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:DeleteItem]
+                Resource: !GetAtt StateLockTable.Arn
+
+  # ---------------------------------------------------------------
+  # Model artifact bucket. Terraform does not own this, because the
+  # checkpoint must survive a full teardown of the application stack.
+  # ---------------------------------------------------------------
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${ProjectName}-artifacts-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  DeployRoleArn:
+    Description: Set this as the GitHub repository variable AWS_DEPLOY_ROLE
+    Value: !GetAtt DeployRole.Arn
+  StateBucketName:
+    Description: Set this as the GitHub repository variable TF_STATE_BUCKET
+    Value: !Ref StateBucket
+  ArtifactBucketName:
+    Description: Upload full_model.pth here under models/full_model.pth
+    Value: !Ref ArtifactBucket

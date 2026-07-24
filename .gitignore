@@ -1,0 +1,9 @@
+app/artifacts/
+*.pth
+.terraform/
+*.tfstate
+*.tfstate.backup
+tfplan
+__pycache__/
+*.pyc
+.venv/

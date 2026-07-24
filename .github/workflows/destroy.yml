@@ -1,0 +1,55 @@
+name: Destroy
+
+# Tears everything down. The state bucket, artifact bucket, and deploy
+# role survive, because they are owned by the bootstrap stack. Redeploying
+# is one click on the Deploy workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  PROJECT: gapo
+
+jobs:
+  destroy:
+    if: inputs.confirm == 'destroy'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform init
+        working-directory: infra
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ env.PROJECT }}-tfstate-lock"
+
+      - name: Empty buckets
+        # Terraform will not delete a non-empty bucket.
+        run: |
+          for B in $(cd infra && terraform output -raw web_bucket) \
+                   $(cd infra && terraform output -raw data_bucket); do
+            aws s3 rm "s3://$B" --recursive || true
+          done
+
+      - name: Terraform destroy
+        working-directory: infra
+        run: terraform destroy -auto-approve -var="image_tag=unused"
