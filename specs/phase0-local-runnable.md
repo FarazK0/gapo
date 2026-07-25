@@ -99,63 +99,85 @@ produces the same output as the original model.
 
 ### What to implement
 
-**Step 1: Run ingest with the local backend to populate data/**
+**Important constraint on test design**: The validator runs tests inside a git worktree
+that only contains tracked files. `data/` (local bundle) is gitignored and will NOT exist
+in the worktree. Tests must be fully self-contained — no S3, no `data/` directory.
 
-```bash
-cd app
-STORAGE_BACKEND=local python3 -c "
-from core import ingest
-universe = ['AAPL','MSFT','NVDA','GOOGL','META','JPM','XOM','PG','COST','HD',
-            'V','MA','KO','PEP','CVX','UNH','WMT','BAC','DIS','CSCO',
-            'ADBE','CRM','AMD','INTC','QCOM']
-result = ingest.refresh(universe)
-print(result)
-assert result['promoted'], 'snapshot not promoted'
-"
-```
+The solution: capture the model inputs (feature tensors) as numpy `.npy` files and commit
+them to `tests/fixtures/input/`. The test calls `predictor._forward()` directly, bypassing
+the bundle/store layer entirely.
 
-**Step 2: Capture golden outputs from the ported predictor**
+**Step 1: Download raw market data and build feature tensors**
 
-Run `predictor.run(tickers)` for each of these five baskets. The predictor IS the
-reference — these golden files record its current output so future changes do not
-silently shift the numbers.
+For each of the five baskets below, download market data and compute the feature tensor
+using `app/core/features.py`. Use these five baskets:
 
 ```
 basket_1: AAPL MSFT NVDA GOOGL META JPM XOM PG COST HD
 basket_2: AAPL MSFT NVDA AMZN GOOGL META TSLA AMD INTC QCOM
 basket_3: JPM BAC WFC V MA XOM CVX PG KO PEP
-basket_4: AAPL JNJ WMT VZ IBM CAT GE UNP LIN NEE (use available tickers from ingest result)
-basket_5: NVDA AMD AVGO QCOM TXN INTC CSCO IBM NOW CRM (use available tickers from ingest result)
+basket_4: AAPL JNJ WMT VZ IBM CAT GE UNP LIN NEE
+basket_5: NVDA AMD AVGO QCOM TXN INTC CSCO IBM NOW CRM
 ```
 
-Save each result as `tests/fixtures/golden/basket_N.json`:
+For each basket:
+1. Download 3 years of daily OHLCV using `yfinance` (same params as `ingest.fetch_daily`)
+2. Convert to weekly bars using `features.to_weekly()`
+3. Compute the (52, 6) feature array using `features.build()`
+4. Stack into shape `(n_stocks, 52, 6)`
+5. Save as `tests/fixtures/input/basket_N.npy` (numpy float32)
+
+If a ticker fails to download (yfinance outage), substitute the next available ticker
+from the 50-ticker universe in `infra/variables.tf`. Record any substitutions in a
+comment at the top of `tests/test_golden.py`.
+
+**Step 2: Capture golden outputs**
+
+For each basket, run the model directly and save the output weights:
+
+```python
+import sys; sys.path.insert(0, "app")
+import numpy as np
+import torch
+from core import predictor, graph
+
+x_np = np.load("tests/fixtures/input/basket_N.npy")
+x = torch.from_numpy(x_np)
+edge_index, edge_attr = graph.build_edge_index(x_np)
+weights = predictor._forward(x, edge_index, edge_attr)
+w = weights.detach().cpu().numpy().tolist()
+```
+
+Save as `tests/fixtures/golden/basket_N.json`:
 ```json
 {"tickers": ["AAPL", ...], "weights": {"AAPL": 0.123456, ...}}
 ```
 
-If any ticker in a basket is missing from the ingest result (download failed), substitute
-the next ticker from the universe list so each basket still has exactly 10 tickers.
-Record any substitutions in a comment at the top of `test_golden.py`.
-
 **Step 3: Write `tests/test_golden.py`**
 
 Parametrised pytest over all five baskets. For each basket:
-1. Load `tests/fixtures/golden/basket_N.json`
-2. Call `predictor.run(tickers)` with `STORAGE_BACKEND=local`
-3. Assert each weight matches the golden value within `atol=1e-4`
-4. Assert weights sum to 1.0 within `1e-3`
+1. Load `tests/fixtures/input/basket_N.npy` → feature tensor
+2. Load `tests/fixtures/golden/basket_N.json` → expected weights
+3. Build edge index using `graph.build_edge_index(x_np)`
+4. Call `predictor._forward(x, edge_index, edge_attr)` directly (not `predictor.run()`)
+5. Assert each weight matches the golden value within `atol=1e-4`
+6. Assert weights sum to 1.0 within `1e-3`
 
-The test must not make network calls. It uses the `data/` snapshot captured above.
+The test imports `predictor` at module level, which loads the model checkpoint via the
+`MODEL_PATH` environment variable. The test must work when `MODEL_PATH` is set to any
+valid checkpoint path — do not hardcode the path.
 
 Also create `tests/__init__.py` (empty) if it does not exist.
 
 ### Acceptance criteria
 
-1. `tests/fixtures/golden/basket_1.json` through `basket_5.json` exist, each with
-   10 tickers, weights summing to 1.0 ± 0.001.
-2. `STORAGE_BACKEND=local python3 -m pytest tests/test_golden.py -v` passes for all
-   5 baskets.
-3. `ruff check app/ tests/` passes.
+1. `tests/fixtures/input/basket_1.npy` through `basket_5.npy` exist, each loadable as
+   a float32 array of shape `(10, 52, 6)`.
+2. `tests/fixtures/golden/basket_1.json` through `basket_5.json` exist, each with
+   10 tickers and weights summing to 1.0 ± 0.001.
+3. `MODEL_PATH=/mnt/d/ml-serve/gapo/protraderbot/InferenceApplication/full_model.pth \
+   python3 -m pytest tests/test_golden.py -v` passes for all 5 baskets.
+4. `ruff check app/ tests/` passes.
 
 ---
 
