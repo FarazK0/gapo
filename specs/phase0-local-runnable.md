@@ -84,7 +84,7 @@ unchanged — S3 is used as before. No existing codepath should change.
 **Owner:** backend-agent  
 **Depends on:** Task 1 (local storage backend must work first)  
 **Inputs:** `app/core/predictor.py`, `app/core/features.py`, `app/core/graph.py`,
-            `app/core/model.py`, `protraderbot/InferenceApplication/full_model.pth`  
+            `app/core/model.py`  
 **Outputs:** `tests/__init__.py`, `tests/test_golden.py`,
              `tests/fixtures/golden/basket_1.json` through `basket_5.json`
 
