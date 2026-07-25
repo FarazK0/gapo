@@ -16,14 +16,24 @@ import json
 import os
 from datetime import date, datetime
 
-import boto3
 import pandas as pd
 
-BUCKET = os.environ["DATA_BUCKET"]
 POINTER_KEY = "current.json"
 MAX_STALENESS_DAYS = 10  # covers a long weekend plus a failed run or two
 
-_s3 = boto3.client("s3")
+_s3 = None
+
+
+def _get_s3():
+    global _s3
+    if _s3 is None:
+        import boto3
+        _s3 = boto3.client("s3")
+    return _s3
+
+
+def _bucket() -> str:
+    return os.environ["DATA_BUCKET"]
 
 
 class StaleDataError(RuntimeError):
@@ -35,9 +45,10 @@ class MissingDataError(RuntimeError):
 
 
 def read_pointer() -> dict:
+    s3 = _get_s3()
     try:
-        obj = _s3.get_object(Bucket=BUCKET, Key=POINTER_KEY)
-    except _s3.exceptions.NoSuchKey:
+        obj = s3.get_object(Bucket=_bucket(), Key=POINTER_KEY)
+    except s3.exceptions.NoSuchKey:
         raise StaleDataError(
             "No market data has been ingested yet. Run the ingest function once."
         )
@@ -45,8 +56,8 @@ def read_pointer() -> dict:
 
 
 def write_pointer(snapshot_date: str, tickers: list) -> None:
-    _s3.put_object(
-        Bucket=BUCKET,
+    _get_s3().put_object(
+        Bucket=_bucket(),
         Key=POINTER_KEY,
         Body=json.dumps(
             {
@@ -71,10 +82,11 @@ def assert_fresh(pointer: dict) -> str:
 
 
 def load_weekly(snapshot: str, ticker: str) -> pd.DataFrame:
+    s3 = _get_s3()
     key = f"snapshots/{snapshot}/{ticker}.parquet"
     try:
-        obj = _s3.get_object(Bucket=BUCKET, Key=key)
-    except _s3.exceptions.NoSuchKey:
+        obj = s3.get_object(Bucket=_bucket(), Key=key)
+    except s3.exceptions.NoSuchKey:
         raise MissingDataError(f"No cached data for {ticker} in snapshot {snapshot}.")
     return pd.read_parquet(io.BytesIO(obj["Body"].read()))
 
@@ -82,8 +94,8 @@ def load_weekly(snapshot: str, ticker: str) -> pd.DataFrame:
 def save_weekly(snapshot: str, ticker: str, frame: pd.DataFrame) -> None:
     buf = io.BytesIO()
     frame.to_parquet(buf, compression="snappy")
-    _s3.put_object(
-        Bucket=BUCKET,
+    _get_s3().put_object(
+        Bucket=_bucket(),
         Key=f"snapshots/{snapshot}/{ticker}.parquet",
         Body=buf.getvalue(),
     )

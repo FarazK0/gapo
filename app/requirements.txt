@@ -1,6 +1,7 @@
 # torch is installed separately in the Dockerfile from the CPU index.
 # Do not add it here or you will pull the CUDA build.
-
+# For local development install torch manually first:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
 torch-geometric==2.5.3
 numpy==1.26.4
 pandas==2.2.2

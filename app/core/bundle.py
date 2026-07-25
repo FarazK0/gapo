@@ -35,14 +35,12 @@ import logging
 import os
 import time
 
-import boto3
 import numpy as np
 
 from core import store
 
 log = logging.getLogger("gapo.bundle")
 
-BUCKET = os.environ["DATA_BUCKET"]
 BUNDLE_NAME = "bundle.npz"
 
 # How long a warm container may keep serving a bundle before rechecking
@@ -50,7 +48,19 @@ BUNDLE_NAME = "bundle.npz"
 # that a new snapshot propagates within the hour.
 REFRESH_SECONDS = int(os.environ.get("BUNDLE_REFRESH_SECONDS", "900"))
 
-_s3 = boto3.client("s3")
+_s3 = None
+
+
+def _get_s3():
+    global _s3
+    if _s3 is None:
+        import boto3
+        _s3 = boto3.client("s3")
+    return _s3
+
+
+def _bucket() -> str:
+    return os.environ["DATA_BUCKET"]
 
 
 class Bundle:
@@ -84,8 +94,8 @@ def write(snapshot: str, tickers: list, matrix: np.ndarray) -> None:
     """Called by ingest. One object for the whole universe."""
     buf = io.BytesIO()
     np.savez_compressed(buf, tickers=np.array(tickers), matrix=matrix)
-    _s3.put_object(
-        Bucket=BUCKET,
+    _get_s3().put_object(
+        Bucket=_bucket(),
         Key=f"snapshots/{snapshot}/{BUNDLE_NAME}",
         Body=buf.getvalue(),
     )
@@ -94,7 +104,7 @@ def write(snapshot: str, tickers: list, matrix: np.ndarray) -> None:
 
 
 def _read(snapshot: str) -> Bundle:
-    obj = _s3.get_object(Bucket=BUCKET, Key=f"snapshots/{snapshot}/{BUNDLE_NAME}")
+    obj = _get_s3().get_object(Bucket=_bucket(), Key=f"snapshots/{snapshot}/{BUNDLE_NAME}")
     with np.load(io.BytesIO(obj["Body"].read()), allow_pickle=False) as z:
         tickers = [str(t) for t in z["tickers"]]
         matrix = z["matrix"].astype(np.float32)

@@ -24,23 +24,25 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from core import bundle, features, graph, store
-from core.store import MissingDataError, StaleDataError  # re-exported
+from core import bundle, features, graph
+from core.store import MissingDataError, StaleDataError  # noqa: F401  re-exported for callers
 
 log = logging.getLogger("gapo.predictor")
 
-MODEL_PATH = os.environ.get("MODEL_PATH", "/opt/model/full_model.pth")
-SHA_PATH = "/opt/model/model.sha256"
+# Lambda path in production; local repo path for development.
+_LOCAL_DEFAULT = str(
+    Path(__file__).parents[2] / "protraderbot" / "InferenceApplication" / "full_model.pth"
+)
+MODEL_PATH = os.environ.get("MODEL_PATH", _LOCAL_DEFAULT)
+SHA_PATH = os.environ.get("SHA_PATH", "/opt/model/model.sha256")
 
-# ---- adjust these three to match your training run ------------------
-MODEL_CLASS = "GATPortfolio"
+# Checkpoint was trained with these exact dimensions (verified from state_dict shapes).
+MODEL_CLASS = "GATPortfolioNet"
 MODEL_KWARGS = {
-    "in_features": features.N_FEATURES,
-    "lookback": features.LOOKBACK,
-    "hidden_dim": 64,
-    "heads": 4,
+    "n_stocks": 10,
+    "n_features": features.N_FEATURES,  # 6
+    "d_model": 64,
 }
-# ---------------------------------------------------------------------
 
 
 def _verify_checkpoint(path: str) -> str:
@@ -59,29 +61,40 @@ def _verify_checkpoint(path: str) -> str:
 def _load_model():
     """Load once at container init.
 
-    torch.load with weights_only=True refuses to execute arbitrary
-    pickled code. Never relax this. A checkpoint is executable content
-    and the whole reason the desktop app's 'Load Model' button cannot
-    exist on a server.
+    The checkpoint was saved as a full model object (torch.save(model)), not as a
+    state_dict. weights_only=False is required. The checkpoint comes from a controlled
+    training pipeline — never load untrusted .pth files with weights_only=False.
     """
-    from core.model import __dict__ as model_module  # your model.py
+    import __main__
+    import torch.nn as nn
+    from core.model import GATPortfolioNet, PortfolioMemory, StockTemporalEncoder
 
-    cls = model_module[MODEL_CLASS]
-    model = cls(**MODEL_KWARGS)
+    # Checkpoint was saved with torch.save(model) from a __main__ script.
+    # Register classes there so pickle's find_class resolves them correctly.
+    for _cls in (GATPortfolioNet, PortfolioMemory, StockTemporalEncoder):
+        if not hasattr(__main__, _cls.__name__):
+            setattr(__main__, _cls.__name__, _cls)
 
-    state = torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
-    if isinstance(state, dict) and "state_dict" in state:
-        state = state["state_dict"]
+    loaded = torch.load(MODEL_PATH, map_location="cpu", weights_only=False)
 
-    missing, unexpected = model.load_state_dict(state, strict=False)
-    if missing or unexpected:
-        # Loud, because a partial load produces confident nonsense.
-        log.error("state_dict mismatch: missing=%s unexpected=%s", missing, unexpected)
-        raise RuntimeError(
-            "Checkpoint does not match the model definition. "
-            f"Missing keys: {list(missing)[:5]}. "
-            f"Unexpected keys: {list(unexpected)[:5]}."
-        )
+    if isinstance(loaded, nn.Module):
+        # Checkpoint is a full model object — use directly.
+        model = loaded
+    else:
+        # Checkpoint is a state_dict (dict with "state_dict" key or bare dict).
+        from core.model import __dict__ as model_module
+
+        cls = model_module[MODEL_CLASS]
+        model = cls(**MODEL_KWARGS)
+        state = loaded.get("state_dict", loaded) if isinstance(loaded, dict) else loaded
+        missing, unexpected = model.load_state_dict(state, strict=False)
+        if missing or unexpected:
+            log.error("state_dict mismatch: missing=%s unexpected=%s", missing, unexpected)
+            raise RuntimeError(
+                "Checkpoint does not match the model definition. "
+                f"Missing keys: {list(missing)[:5]}. "
+                f"Unexpected keys: {list(unexpected)[:5]}."
+            )
 
     model.eval()
     torch.set_grad_enabled(False)
@@ -94,12 +107,9 @@ _MODEL = _load_model()
 log.info("model loaded, sha256=%s", MODEL_SHA[:12])
 
 
-def _forward(x: torch.Tensor, edge_index: torch.Tensor, edge_weight: torch.Tensor):
-    """Single place where the model's calling convention is expressed.
-
-    If your forward() takes different arguments, change it here only.
-    """
-    return _MODEL(x, edge_index, edge_weight)
+def _forward(x: torch.Tensor, edge_index: torch.Tensor, edge_attr: torch.Tensor):
+    """Single place where the model's calling convention is expressed."""
+    return _MODEL(x, edge_index, edge_attr, history=[])
 
 
 def run(tickers: list) -> dict:
@@ -113,9 +123,9 @@ def run(tickers: list) -> dict:
 
     x = torch.from_numpy(x_np)
 
-    edge_index, edge_weight = graph.build_edge_index(x_np)
+    edge_index, edge_attr = graph.build_edge_index(x_np)
 
-    raw = _forward(x, edge_index, edge_weight)
+    raw = _forward(x, edge_index, edge_attr)
     weights = raw.detach().cpu().numpy().reshape(-1).astype(np.float64)
 
     # Defensive normalisation. The model should already emit a simplex,

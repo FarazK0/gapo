@@ -13,9 +13,8 @@ paid provider means implementing fetch_daily() and nothing else.
 import logging
 from datetime import date, timedelta
 
-import pandas as pd
-
 import numpy as np
+import pandas as pd
 
 from core import bundle, features, store
 
