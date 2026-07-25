@@ -33,6 +33,7 @@ bottleneck that should not exist.
 import io
 import logging
 import os
+import pathlib
 import time
 
 import numpy as np
@@ -49,6 +50,15 @@ BUNDLE_NAME = "bundle.npz"
 REFRESH_SECONDS = int(os.environ.get("BUNDLE_REFRESH_SECONDS", "900"))
 
 _s3 = None
+
+
+def _is_local() -> bool:
+    return os.environ.get("STORAGE_BACKEND") == "local"
+
+
+def _data_dir() -> pathlib.Path:
+    # app/core/bundle.py -> parent.parent = app/ -> data/
+    return pathlib.Path(__file__).parent.parent / "data"
 
 
 def _get_s3():
@@ -94,6 +104,15 @@ def write(snapshot: str, tickers: list, matrix: np.ndarray) -> None:
     """Called by ingest. One object for the whole universe."""
     buf = io.BytesIO()
     np.savez_compressed(buf, tickers=np.array(tickers), matrix=matrix)
+
+    if _is_local():
+        path = _data_dir() / BUNDLE_NAME
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(buf.getvalue())
+        log.info("bundle written (local): %d tickers, %d bytes",
+                 len(tickers), buf.tell())
+        return
+
     _get_s3().put_object(
         Bucket=_bucket(),
         Key=f"snapshots/{snapshot}/{BUNDLE_NAME}",
@@ -104,6 +123,13 @@ def write(snapshot: str, tickers: list, matrix: np.ndarray) -> None:
 
 
 def _read(snapshot: str) -> Bundle:
+    if _is_local():
+        path = _data_dir() / BUNDLE_NAME
+        with np.load(path, allow_pickle=False) as z:
+            tickers = [str(t) for t in z["tickers"]]
+            matrix = z["matrix"].astype(np.float32)
+        return Bundle(snapshot, tickers, matrix)
+
     obj = _get_s3().get_object(Bucket=_bucket(), Key=f"snapshots/{snapshot}/{BUNDLE_NAME}")
     with np.load(io.BytesIO(obj["Body"].read()), allow_pickle=False) as z:
         tickers = [str(t) for t in z["tickers"]]
