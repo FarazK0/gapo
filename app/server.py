@@ -62,5 +62,5 @@ class _Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     server = HTTPServer(("0.0.0.0", PORT), _Handler)
-    print(f"http://localhost:{PORT}/")
+    print(f"http://localhost:{PORT}/", flush=True)
     server.serve_forever()
