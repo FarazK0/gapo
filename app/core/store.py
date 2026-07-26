@@ -129,6 +129,12 @@ def load_weekly(snapshot: str, ticker: str) -> pd.DataFrame:
 
 
 def save_weekly(snapshot: str, ticker: str, frame: pd.DataFrame) -> None:
+    if _is_local():
+        path = _data_dir() / "snapshots" / snapshot / f"{ticker}.parquet"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        frame.to_parquet(path, compression="snappy")
+        return
+
     buf = io.BytesIO()
     frame.to_parquet(buf, compression="snappy")
     _get_s3().put_object(
