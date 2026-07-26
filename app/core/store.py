@@ -5,6 +5,11 @@ Layout in S3:
     snapshots/<YYYY-MM-DD>/<TICKER>.parquet    weekly bars per ticker
     current.json                                pointer to the newest good snapshot
 
+Layout on disk (STORAGE_BACKEND=local):
+
+    data/snapshots/<YYYY-MM-DD>/<TICKER>.parquet
+    data/current.json
+
 The pointer indirection is what makes the daily job safe to fail. Ingest
 writes a whole snapshot before flipping the pointer, so a partial or
 broken run never becomes the snapshot that inference reads. This is the
@@ -14,6 +19,7 @@ same promote-on-success idea as the model version table, applied to data.
 import io
 import json
 import os
+import pathlib
 from datetime import date, datetime
 
 import pandas as pd
@@ -22,6 +28,15 @@ POINTER_KEY = "current.json"
 MAX_STALENESS_DAYS = 10  # covers a long weekend plus a failed run or two
 
 _s3 = None
+
+
+def _is_local() -> bool:
+    return os.environ.get("STORAGE_BACKEND") == "local"
+
+
+def _data_dir() -> pathlib.Path:
+    # app/core/store.py -> parent.parent = app/ -> data/
+    return pathlib.Path(__file__).parent.parent / "data"
 
 
 def _get_s3():
@@ -45,6 +60,14 @@ class MissingDataError(RuntimeError):
 
 
 def read_pointer() -> dict:
+    if _is_local():
+        path = _data_dir() / POINTER_KEY
+        if not path.exists():
+            raise StaleDataError(
+                "No market data has been ingested yet. Run the ingest function once."
+            )
+        return json.loads(path.read_text())
+
     s3 = _get_s3()
     try:
         obj = s3.get_object(Bucket=_bucket(), Key=POINTER_KEY)
@@ -56,16 +79,24 @@ def read_pointer() -> dict:
 
 
 def write_pointer(snapshot_date: str, tickers: list) -> None:
+    data = json.dumps(
+        {
+            "snapshot": snapshot_date,
+            "tickers": sorted(tickers),
+            "written_at": datetime.utcnow().isoformat() + "Z",
+        }
+    )
+
+    if _is_local():
+        path = _data_dir() / POINTER_KEY
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(data)
+        return
+
     _get_s3().put_object(
         Bucket=_bucket(),
         Key=POINTER_KEY,
-        Body=json.dumps(
-            {
-                "snapshot": snapshot_date,
-                "tickers": sorted(tickers),
-                "written_at": datetime.utcnow().isoformat() + "Z",
-            }
-        ).encode(),
+        Body=data.encode(),
         ContentType="application/json",
     )
 
@@ -82,6 +113,12 @@ def assert_fresh(pointer: dict) -> str:
 
 
 def load_weekly(snapshot: str, ticker: str) -> pd.DataFrame:
+    if _is_local():
+        path = _data_dir() / "snapshots" / snapshot / f"{ticker}.parquet"
+        if not path.exists():
+            raise MissingDataError(f"No cached data for {ticker} in snapshot {snapshot}.")
+        return pd.read_parquet(path)
+
     s3 = _get_s3()
     key = f"snapshots/{snapshot}/{ticker}.parquet"
     try:
@@ -92,6 +129,12 @@ def load_weekly(snapshot: str, ticker: str) -> pd.DataFrame:
 
 
 def save_weekly(snapshot: str, ticker: str, frame: pd.DataFrame) -> None:
+    if _is_local():
+        path = _data_dir() / "snapshots" / snapshot / f"{ticker}.parquet"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        frame.to_parquet(path, compression="snappy")
+        return
+
     buf = io.BytesIO()
     frame.to_parquet(buf, compression="snappy")
     _get_s3().put_object(
