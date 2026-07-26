@@ -1,0 +1,26 @@
+{
+  "tickers": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "GOOGL",
+    "META",
+    "TSLA",
+    "AMD",
+    "INTC",
+    "QCOM"
+  ],
+  "weights": {
+    "AAPL": 0.129446,
+    "MSFT": 0.092311,
+    "NVDA": 0.090308,
+    "AMZN": 0.14328,
+    "GOOGL": 0.10912,
+    "META": 0.121542,
+    "TSLA": 0.055337,
+    "AMD": 0.070555,
+    "INTC": 0.107425,
+    "QCOM": 0.080676
+  }
+}
