@@ -1,0 +1,6 @@
+# Local dev only. Install with:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt -r requirements-dev.txt
+torch>=2.0.0 --index-url https://download.pytorch.org/whl/cpu
+yfinance>=0.2.40
+pytest>=8.0
