@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values.
+# Only budget_alert_email and region typically need to change.
+
+region             = "eu-west-1"       # AWS region for all resources
+budget_alert_email = "you@example.com" # Set this or you will not know when costs spike
+monthly_budget_usd = 25
