@@ -8,11 +8,11 @@ Parameters:
   GitHubOrg:
     Type: String
     Description: GitHub account or organisation that owns the repository
-    Default: FarazKhanTcd
+    Default: FarazK0
   GitHubRepo:
     Type: String
     Description: Repository name
-    Default: protraderbot
+    Default: gapo
   ProjectName:
     Type: String
     Default: gapo
