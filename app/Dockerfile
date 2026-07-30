@@ -7,19 +7,18 @@
 
 FROM public.ecr.aws/lambda/python:3.11 AS deps
 
-# Build tools needed for packages that compile from source (e.g. pyarrow via meson).
-RUN microdnf install -y gcc gcc-c++ make cmake && microdnf clean all
-
 # CPU-only wheels. The default PyPI torch package pulls the full CUDA
 # runtime and lands around 2.5 GB, which does not fit comfortably in a
 # Lambda image and would do nothing for you here. This index gives you
 # roughly 200 MB instead.
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --prefer-binary \
       --index-url https://download.pytorch.org/whl/cpu \
       torch==2.4.1
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# --prefer-binary forces pre-built wheels; avoids source builds that need a C compiler
+# (pyarrow >=14 and numpy >=1.26 use meson and would fail on this stripped Lambda image).
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 # Strip test suites and bytecode caches. Worth about 150 MB, which is
 # 150 MB less to pull on every cold start.
