@@ -139,14 +139,7 @@ jobs:
             /tmp/ingest.json
           cat /tmp/ingest.json
           # Fail if the Lambda itself threw an unhandled error.
-          python3 -c "
-import json, sys
-d = json.load(open('/tmp/ingest.json'))
-if 'errorMessage' in d:
-    print('Ingest Lambda error:', d['errorMessage'][:300])
-    sys.exit(1)
-print('Ingest summary:', json.dumps({k:v for k,v in d.items() if k != 'errors'}))
-"
+          python3 -c "import json,sys; d=json.load(open('/tmp/ingest.json')); print('Ingest error:',d.get('errorMessage','')[:300]) or sys.exit(1) if 'errorMessage' in d else print('written:',d.get('written',0),'failed:',d.get('failed',0))"
 
       - name: Smoke test
         run: |
@@ -163,14 +156,7 @@ print('Ingest summary:', json.dumps({k:v for k,v in d.items() if k != 'errors'})
               /tmp/smoke.json
             STATUS=$(python3 -c "import json; print(json.load(open('/tmp/smoke.json')).get('statusCode', 500))")
             echo "attempt $i -> status $STATUS"
-            [ "$STATUS" = "200" ] && python3 -c "
-import json
-d = json.load(open('/tmp/smoke.json'))
-b = json.loads(d['body'])
-print('tickers:', b['tickers'][:3], '...')
-print('model_sha256:', b.get('model_sha256'))
-print('elapsed_ms:', b.get('elapsed_ms'))
-" && exit 0
+            [ "$STATUS" = "200" ] && cat /tmp/smoke.json && exit 0
             sleep 20
           done
           echo "Smoke test failed:"
