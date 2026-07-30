@@ -20,16 +20,6 @@ resource "aws_cloudfront_origin_access_control" "s3" {
   signing_protocol                  = "sigv4"
 }
 
-# This is the piece that makes the whole design work without an ALB or
-# API Gateway. CloudFront signs its requests to the Lambda function URL,
-# so the function is reachable only through the distribution.
-resource "aws_cloudfront_origin_access_control" "lambda" {
-  name                              = "${local.name}-lambda-oac"
-  origin_access_control_origin_type = "lambda"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
-}
-
 resource "aws_cloudfront_distribution" "web" {
   enabled             = true
   default_root_object = "index.html"
@@ -42,10 +32,12 @@ resource "aws_cloudfront_distribution" "web" {
     origin_access_control_id = aws_cloudfront_origin_access_control.s3.id
   }
 
+  # API Gateway invoke URL — no OAC signing required. API Gateway invokes
+  # Lambda via its own IAM integration, so the SigV4 body-hash mismatch
+  # that plagued the Lambda Function URL OAC path does not occur here.
   origin {
-    origin_id                = "lambda-predict"
-    domain_name              = replace(replace(aws_lambda_function_url.predict.function_url, "https://", ""), "/", "")
-    origin_access_control_id = aws_cloudfront_origin_access_control.lambda.id
+    origin_id   = "apigw-predict"
+    domain_name = replace(aws_apigatewayv2_stage.predict.invoke_url, "https://", "")
 
     custom_origin_config {
       http_port              = 80
@@ -66,14 +58,11 @@ resource "aws_cloudfront_distribution" "web" {
 
   ordered_cache_behavior {
     path_pattern           = "/api/*"
-    target_origin_id       = "lambda-predict"
+    target_origin_id       = "apigw-predict"
     viewer_protocol_policy = "https-only"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
-    # compress = false because OAC signing breaks when CloudFront normalizes
-    # Accept-Encoding (e.g. "deflate, gzip, br, zstd" -> "gzip, br") before
-    # forwarding to the Lambda URL, causing the body hash to diverge.
-    compress = false
+    compress               = false
 
     cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
@@ -98,7 +87,8 @@ data "aws_cloudfront_cache_policy" "disabled" {
   name = "Managed-CachingDisabled"
 }
 
-# Host must be excluded or SigV4 verification at the function URL fails.
+# Host must be excluded: API Gateway routes on Host and would reject
+# the CloudFront distribution hostname if it were forwarded.
 data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
   name = "Managed-AllViewerExceptHostHeader"
 }

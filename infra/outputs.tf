@@ -26,3 +26,8 @@ output "predict_function" {
 output "ingest_function" {
   value = aws_lambda_function.ingest.function_name
 }
+
+output "api_gateway_url" {
+  description = "API Gateway invoke URL (fronted by CloudFront at /api/*)"
+  value       = aws_apigatewayv2_stage.predict.invoke_url
+}
