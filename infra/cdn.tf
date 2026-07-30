@@ -46,7 +46,7 @@ resource "aws_cloudfront_distribution" "web" {
   # that plagued the Lambda Function URL OAC path does not occur here.
   origin {
     origin_id   = "apigw-predict"
-    domain_name = replace(aws_apigatewayv2_stage.predict.invoke_url, "https://", "")
+    domain_name = replace(replace(aws_apigatewayv2_stage.predict.invoke_url, "https://", ""), "/", "")
 
     custom_origin_config {
       http_port              = 80
