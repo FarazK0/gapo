@@ -132,6 +132,9 @@ resource "aws_lambda_function" "ingest" {
       DATA_BUCKET = aws_s3_bucket.data.id
       UNIVERSE    = join(",", var.universe)
       LOG_LEVEL   = "INFO"
+      # handler.py imports predictor at module scope, so ingest also needs
+      # MODEL_PATH even though it never runs inference.
+      MODEL_PATH  = "/opt/model/full_model.pth"
     }
   }
 

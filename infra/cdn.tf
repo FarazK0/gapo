@@ -70,7 +70,10 @@ resource "aws_cloudfront_distribution" "web" {
     viewer_protocol_policy = "https-only"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
-    compress               = true
+    # compress = false because OAC signing breaks when CloudFront normalizes
+    # Accept-Encoding (e.g. "deflate, gzip, br, zstd" -> "gzip, br") before
+    # forwarding to the Lambda URL, causing the body hash to diverge.
+    compress = false
 
     cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
