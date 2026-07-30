@@ -28,6 +28,10 @@ def fetch_daily(ticker: str) -> pd.DataFrame:
     """The only provider-specific function. Replace to change data source."""
     import yfinance as yf
 
+    # /tmp is the only writable directory in Lambda. Without this, yfinance
+    # tries to write timezone cache to ~/.cache and may silently fail.
+    yf.set_tz_cache_location("/tmp/yfinance_tz_cache")
+
     end = date.today()
     start = end - timedelta(days=HISTORY_DAYS)
 

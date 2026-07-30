@@ -6,7 +6,7 @@ torch-geometric==2.5.3
 numpy==1.26.4
 pandas==2.2.2
 pyarrow==16.1.0
-yfinance==0.2.40
+yfinance>=1.0.0
 
 # boto3 ships in the Lambda runtime. Pinning it here only bloats the
 # image and risks a version conflict with the managed runtime.
