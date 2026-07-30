@@ -82,11 +82,15 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                # Stable repo name check (no numeric IDs needed here)
+                token.actions.githubusercontent.com:repository:
+                  !Sub "${GitHubOrg}/${GitHubRepo}"
               StringLike:
-                # Only this repository, and only from a protected ref.
-                # Tighten to a single branch once you are past initial setup.
+                # GitHub now includes numeric owner/repo IDs in sub:
+                # repo:Owner@ownerId/Repo@repoId:ref:refs/heads/branch
+                # Wildcard on IDs so the condition survives without hardcoding them.
                 token.actions.githubusercontent.com:sub:
-                  !Sub "repo:${GitHubOrg}/${GitHubRepo}:*"
+                  !Sub "repo:${GitHubOrg}@*/${GitHubRepo}@*:*"
       ManagedPolicyArns:
         # Deliberately broad for a solo project. Narrow this before you
         # ever share the account. See README section "Tightening IAM".

@@ -7,6 +7,9 @@
 
 FROM public.ecr.aws/lambda/python:3.11 AS deps
 
+# Build tools needed for packages that compile from source (e.g. pyarrow via meson).
+RUN dnf install -y gcc gcc-c++ make cmake meson && dnf clean all
+
 # CPU-only wheels. The default PyPI torch package pulls the full CUDA
 # runtime and lands around 2.5 GB, which does not fit comfortably in a
 # Lambda image and would do nothing for you here. This index gives you
