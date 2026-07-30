@@ -20,6 +20,15 @@ resource "aws_cloudfront_origin_access_control" "s3" {
   signing_protocol                  = "sigv4"
 }
 
+# Kept to prevent a 409 during the same apply that removes it from the
+# distribution. Remove this block after the distribution change propagates.
+resource "aws_cloudfront_origin_access_control" "lambda" {
+  name                              = "${local.name}-lambda-oac"
+  origin_access_control_origin_type = "lambda"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
 resource "aws_cloudfront_distribution" "web" {
   enabled             = true
   default_root_object = "index.html"
