@@ -29,7 +29,7 @@ body{
 }
 .wrap{max-width:1120px;margin:0 auto;padding:var(--step) var(--step) 5rem}
 
-/* masthead ---------------------------------------------------------- */
+/* masthead */
 header{border-bottom:1px solid var(--rule);padding-bottom:1.1rem;margin-bottom:2rem}
 .eyebrow{
   font-family:"IBM Plex Mono",monospace;font-size:.68rem;letter-spacing:.14em;
@@ -43,7 +43,7 @@ h1{
 h1 em{font-style:italic;color:var(--w2)}
 .lede{max-width:56ch;color:var(--muted);margin:0}
 
-/* layout ------------------------------------------------------------ */
+/* layout */
 .cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:2.5rem;align-items:start}
 @media(max-width:820px){.cols{grid-template-columns:1fr;gap:2rem}}
 
@@ -53,12 +53,27 @@ h2{
   margin:0 0 .75rem;padding-bottom:.4rem;border-bottom:1px solid var(--rule)
 }
 
-/* picker ------------------------------------------------------------ */
+/* mode tabs */
+.mode-tabs{display:flex;gap:.3rem;margin-bottom:1.4rem}
+.mode-tab{
+  font-family:"IBM Plex Mono",monospace;font-size:.7rem;font-weight:500;
+  letter-spacing:.1em;text-transform:uppercase;
+  padding:.38rem .8rem;border:1px solid var(--rule);
+  background:transparent;color:var(--muted);cursor:pointer;border-radius:2px;
+  transition:background .12s,color .12s,border-color .12s
+}
+.mode-tab[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.mode-tab:hover:not([aria-selected="true"]){background:var(--rule)}
+.mode-tab:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+
+/* form inputs */
 .search{
   width:100%;padding:.6rem .7rem;border:1px solid var(--rule);background:var(--card);
   color:var(--ink);font:inherit;border-radius:2px;margin-bottom:.6rem
 }
 .search:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+
+/* universe picker */
 .universe{
   display:flex;flex-wrap:wrap;gap:.3rem;max-height:19rem;overflow-y:auto;
   padding:.55rem;background:var(--card);border:1px solid var(--rule);border-radius:2px
@@ -78,6 +93,34 @@ h2{
 }
 .count strong{color:var(--ink);font-weight:500}
 
+/* portfolio list */
+.pf-empty{
+  padding:1rem .7rem;color:var(--muted);font-size:.85rem;
+  border:1px dashed var(--rule);border-radius:2px;text-align:center;
+  margin-bottom:.8rem
+}
+.pf-item{
+  display:flex;align-items:center;gap:.55rem;
+  padding:.5rem .7rem;border:1px solid var(--rule);background:var(--card);
+  border-radius:2px;cursor:pointer;margin-bottom:.3rem;
+  transition:border-color .12s,background .12s
+}
+.pf-item:last-child{margin-bottom:.8rem}
+.pf-item:hover{border-color:var(--ink)}
+.pf-item[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.pf-item[aria-selected="true"] .pf-ticks{color:var(--rule)}
+.pf-name{font-weight:500;font-size:.88rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-ticks{font-family:"IBM Plex Mono",monospace;font-size:.68rem;color:var(--muted);flex-shrink:0}
+.pf-del{
+  background:none;border:0;color:var(--muted);cursor:pointer;
+  font-size:1.15rem;line-height:1;padding:.1rem .28rem;border-radius:2px;
+  flex-shrink:0;transition:color .12s,background .12s
+}
+.pf-del:hover{color:var(--w10);background:rgba(174,94,62,.12)}
+.pf-item[aria-selected="true"] .pf-del{color:rgba(164,179,189,.7)}
+.pf-item[aria-selected="true"] .pf-del:hover{color:var(--paper);background:rgba(255,255,255,.12)}
+
+/* action button */
 .go{
   width:100%;padding:.75rem;background:var(--ink);color:var(--paper);border:0;
   font:inherit;font-weight:600;border-radius:2px;cursor:pointer
@@ -85,14 +128,12 @@ h2{
 .go:disabled{background:var(--rule);color:var(--muted);cursor:not-allowed}
 .go:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 
-/* signature: the allocation ribbon ---------------------------------- */
+/* allocation ribbon */
 .ribbon-shell{min-height:15rem}
 .ribbon{display:flex;height:4.6rem;border:1px solid var(--ink);overflow:hidden}
 .seg{position:relative;transition:flex-grow .5s cubic-bezier(.22,1,.36,1)}
 .seg + .seg{border-left:1px solid rgba(20,33,43,.25)}
-.legend{
-  display:flex;margin-top:.55rem;font-family:"IBM Plex Mono",monospace;font-size:.7rem
-}
+.legend{display:flex;margin-top:.55rem;font-family:"IBM Plex Mono",monospace;font-size:.7rem}
 .leg{
   position:relative;padding-top:.55rem;overflow:hidden;white-space:nowrap;
   color:var(--muted);text-align:left
@@ -115,6 +156,13 @@ h2{
   font-size:1.75rem;font-variant-numeric:tabular-nums
 }
 
+/* used-history badge in allocation table */
+.used-hist-badge{
+  display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:.65rem;
+  background:rgba(22,105,122,.15);color:var(--w2);
+  padding:.12rem .45rem;border-radius:2px;margin-left:.6rem;vertical-align:1px
+}
+
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 th{
   text-align:left;font-family:"IBM Plex Mono",monospace;font-size:.66rem;
@@ -126,11 +174,34 @@ td.sym{font-family:"IBM Plex Mono",monospace}
 td.pct{text-align:right;font-family:"IBM Plex Mono",monospace}
 .swatch{display:inline-block;width:.65rem;height:.65rem;margin-right:.5rem;vertical-align:-1px}
 
-.empty,.error{
+/* history */
+.hist-wrap{margin-top:2.2rem;padding-top:1.8rem;border-top:1px solid var(--rule)}
+.hist-row{display:flex;align-items:center;gap:.75rem;margin-bottom:.45rem}
+.hist-date{
+  font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--muted);
+  width:5.8rem;flex-shrink:0
+}
+.hist-bar{
+  flex:1;height:1.5rem;display:flex;overflow:hidden;
+  border-radius:1px;border:1px solid rgba(20,33,43,.1)
+}
+.hist-seg{transition:flex-grow .4s cubic-bezier(.22,1,.36,1)}
+.hist-badge{
+  font-family:"IBM Plex Mono",monospace;font-size:.63rem;letter-spacing:.03em;
+  padding:.15rem .4rem;border-radius:2px;flex-shrink:0;width:5rem;text-align:center
+}
+.hist-badge.used{background:rgba(22,105,122,.15);color:var(--w2)}
+.hist-badge.fresh{visibility:hidden}
+
+/* messages */
+.empty{
   padding:2.5rem 1.5rem;border:1px dashed var(--rule);color:var(--muted);
   text-align:center;border-radius:2px
 }
-.error{border-style:solid;border-color:var(--w10);color:var(--w10);text-align:left}
+.error{
+  border:1px solid var(--w10);color:var(--w10);text-align:left;
+  padding:1rem 1.2rem;border-radius:2px
+}
 .error b{display:block;font-weight:600;margin-bottom:.2rem;color:var(--ink)}
 
 .pulse{animation:pulse 1.1s ease-in-out infinite}
@@ -155,18 +226,47 @@ footer strong{color:var(--ink)}
 
 <div class="cols">
 
+  <!-- Left: input panel -->
   <section>
-    <h2>Universe</h2>
-    <input id="q" class="search" type="search" placeholder="Filter symbols" aria-label="Filter symbols" autocomplete="off">
-    <div id="universe" class="universe"></div>
-    <p class="count"><span id="count">0 selected</span><span>need <strong>5–25</strong></span></p>
-    <button id="go" class="go" disabled>Build allocation</button>
+    <div class="mode-tabs" role="tablist" aria-label="Selection mode">
+      <button class="mode-tab" id="tab-port" role="tab" aria-selected="true" aria-controls="panel-port">Portfolios</button>
+      <button class="mode-tab" id="tab-adhoc" role="tab" aria-selected="false" aria-controls="panel-adhoc">Ad-hoc</button>
+    </div>
+
+    <!-- Portfolio panel -->
+    <div id="panel-port" role="tabpanel" aria-labelledby="tab-port">
+      <h2>New portfolio</h2>
+      <input id="pf-name" class="search" type="text" placeholder="Portfolio name" maxlength="80" autocomplete="off">
+      <input id="pf-tickers-input" class="search" type="text" placeholder="AAPL, MSFT, NVDA, AMZN, GOOGL" autocomplete="off">
+      <p class="count"><span id="pf-count">0 tickers</span><span>need <strong>5–25</strong></span></p>
+      <button id="pf-create" class="go" disabled>Save portfolio</button>
+
+      <h2 style="margin-top:1.6rem">Saved portfolios</h2>
+      <div id="pf-list"><p class="pf-empty">No portfolios yet.</p></div>
+
+      <button id="go-port" class="go" disabled>Build allocation</button>
+    </div>
+
+    <!-- Ad-hoc panel -->
+    <div id="panel-adhoc" role="tabpanel" aria-labelledby="tab-adhoc" hidden>
+      <h2>Universe</h2>
+      <input id="q" class="search" type="search" placeholder="Filter symbols" aria-label="Filter symbols" autocomplete="off">
+      <div id="universe" class="universe"></div>
+      <p class="count"><span id="count">0 selected</span><span>need <strong>5–25</strong></span></p>
+      <button id="go-adhoc" class="go" disabled>Build allocation</button>
+    </div>
   </section>
 
+  <!-- Right: results panel -->
   <section>
     <h2>Allocation</h2>
     <div id="out" class="ribbon-shell">
       <p class="empty">Choose at least five symbols to run the model.</p>
+    </div>
+
+    <div id="hist-wrap" class="hist-wrap" hidden>
+      <h2>Weekly history</h2>
+      <div id="hist-out"></div>
     </div>
   </section>
 
@@ -187,103 +287,396 @@ const UNIVERSE = ["AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","BRK-B","JPM
 const RAMP = ["--w1","--w2","--w3","--w4","--w5","--w6","--w7","--w8","--w9","--w10"];
 const MIN = 5, MAX = 25;
 
-const selected = new Set();
-const elU = document.getElementById("universe");
-const elQ = document.getElementById("q");
-const elC = document.getElementById("count");
-const elGo = document.getElementById("go");
-const elOut = document.getElementById("out");
+// ----- User ID (uuid persisted in localStorage, sent with every API call) -----
+const userId = (() => {
+  let id = localStorage.getItem("gapo_uid");
+  if (!id) {
+    id = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    localStorage.setItem("gapo_uid", id);
+  }
+  return id;
+})();
 
-const sessionId = localStorage.getItem("sid") ||
-  (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
-localStorage.setItem("sid", sessionId);
+// ----- State -----
+const adhocSelected = new Set();
+let activePortfolioId = null;
 
-function render(filter = "") {
-  const f = filter.trim().toUpperCase();
-  elU.innerHTML = "";
-  UNIVERSE.filter(t => !f || t.includes(f)).forEach(t => {
-    const b = document.createElement("button");
-    b.className = "tick";
-    b.type = "button";
-    b.textContent = t;
-    b.setAttribute("aria-pressed", selected.has(t));
-    b.onclick = () => toggle(t, b);
-    elU.appendChild(b);
-  });
-}
+// ----- DOM refs -----
+const elTabPort    = document.getElementById("tab-port");
+const elTabAdhoc   = document.getElementById("tab-adhoc");
+const elPanelPort  = document.getElementById("panel-port");
+const elPanelAdhoc = document.getElementById("panel-adhoc");
+const elPfName     = document.getElementById("pf-name");
+const elPfInput    = document.getElementById("pf-tickers-input");
+const elPfCount    = document.getElementById("pf-count");
+const elPfCreate   = document.getElementById("pf-create");
+const elPfList     = document.getElementById("pf-list");
+const elGoPort     = document.getElementById("go-port");
+const elQ          = document.getElementById("q");
+const elUniverse   = document.getElementById("universe");
+const elCount      = document.getElementById("count");
+const elGoAdhoc    = document.getElementById("go-adhoc");
+const elOut        = document.getElementById("out");
+const elHistWrap   = document.getElementById("hist-wrap");
+const elHistOut    = document.getElementById("hist-out");
 
-function toggle(t, btn) {
-  if (selected.has(t)) selected.delete(t);
-  else if (selected.size < MAX) selected.add(t);
-  else return;
-  btn.setAttribute("aria-pressed", selected.has(t));
-  sync();
-}
-
-function sync() {
-  const n = selected.size;
-  elC.textContent = n + " selected";
-  elGo.disabled = n < MIN || n > MAX;
+// ----- Utilities -----
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
 function colourFor(rank, total) {
   return `var(${RAMP[Math.min(RAMP.length - 1, Math.floor(rank / total * RAMP.length))]})`;
 }
 
-function draw(data) {
-  const rows = Object.entries(data.weights).sort((a, b) => b[1] - a[1]);
+function tickerColourMap(tickers) {
+  const sorted = [...tickers].sort();
+  const map = {};
+  sorted.forEach((t, i) => { map[t] = `var(${RAMP[i % RAMP.length]})`; });
+  return map;
+}
+
+function parseTickers(str) {
+  return str.split(/[\s,;]+/).map(t => t.trim().toUpperCase()).filter(Boolean);
+}
+
+function errHtml(title, msg) {
+  return `<div class="error"><b>${escHtml(title)}</b>${msg ? escHtml(msg) : ""}</div>`;
+}
+
+// ----- Mode tabs -----
+elTabPort.addEventListener("click",  () => switchTab("port"));
+elTabAdhoc.addEventListener("click", () => switchTab("adhoc"));
+
+function switchTab(which) {
+  const isPort = which === "port";
+  elTabPort.setAttribute("aria-selected",  isPort);
+  elTabAdhoc.setAttribute("aria-selected", !isPort);
+  elPanelPort.hidden  = !isPort;
+  elPanelAdhoc.hidden = isPort;
+  if (!isPort) elHistWrap.hidden = true;
+}
+
+// ----- Portfolio form -----
+function syncCreateBtn() {
+  const tickers = parseTickers(elPfInput.value);
+  const n = tickers.length;
+  elPfCount.textContent = n + " ticker" + (n === 1 ? "" : "s");
+  elPfCreate.disabled = !elPfName.value.trim() || n < MIN || n > MAX;
+}
+elPfName.addEventListener("input", syncCreateBtn);
+elPfInput.addEventListener("input", syncCreateBtn);
+
+elPfCreate.addEventListener("click", async () => {
+  const name    = elPfName.value.trim();
+  const tickers = parseTickers(elPfInput.value);
+  if (!name || tickers.length < MIN || tickers.length > MAX) return;
+
+  elPfCreate.disabled = true;
+  const prev = elPfCreate.textContent;
+  elPfCreate.textContent = "Saving…";
+  try {
+    const res = await fetch("/api/portfolios", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ user_id: userId, name, tickers })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showInlineError(errHtml("Could not save portfolio", data.error || "Unexpected response."));
+      return;
+    }
+    elPfName.value  = "";
+    elPfInput.value = "";
+    syncCreateBtn();
+    await loadPortfolios();
+  } catch {
+    showInlineError(errHtml("Network error", "Could not save portfolio. Try again."));
+  } finally {
+    elPfCreate.textContent = prev;
+    syncCreateBtn();
+  }
+});
+
+function showInlineError(html) {
+  const existing = elPanelPort.querySelector(".inline-err");
+  if (existing) existing.remove();
+  const div = document.createElement("div");
+  div.className = "inline-err";
+  div.innerHTML = html;
+  elPfCreate.insertAdjacentElement("afterend", div);
+  setTimeout(() => div.remove(), 8000);
+}
+
+// ----- Portfolio list -----
+async function loadPortfolios() {
+  try {
+    const res = await fetch(`/api/portfolios?user_id=${encodeURIComponent(userId)}`);
+    if (!res.ok) { renderPortfolios([]); return; }
+    const data = await res.json();
+    renderPortfolios(Array.isArray(data) ? data : (data.portfolios || []));
+  } catch {
+    renderPortfolios([]);
+  }
+}
+
+function renderPortfolios(list) {
+  if (!list.length) {
+    elPfList.innerHTML = '<p class="pf-empty">No portfolios yet.</p>';
+    if (!list.length && activePortfolioId) {
+      activePortfolioId = null;
+      elGoPort.disabled = true;
+    }
+    return;
+  }
+
+  elPfList.innerHTML = list.map(p =>
+    `<div class="pf-item" role="option" tabindex="0"
+        aria-selected="${p.id === activePortfolioId}"
+        data-id="${escHtml(p.id)}"
+        data-tickers="${escHtml((p.tickers || []).join(","))}">
+      <span class="pf-name">${escHtml(p.name)}</span>
+      <span class="pf-ticks">${(p.tickers || []).length}&#8202;tickers</span>
+      <button class="pf-del" aria-label="Delete ${escHtml(p.name)}" data-id="${escHtml(p.id)}">&#xd7;</button>
+    </div>`
+  ).join("");
+
+  elPfList.querySelectorAll(".pf-item").forEach(el => {
+    el.addEventListener("click", e => {
+      if (e.target.closest(".pf-del")) return;
+      const id      = el.dataset.id;
+      const tickers = el.dataset.tickers ? el.dataset.tickers.split(",") : [];
+      if (activePortfolioId === id) {
+        selectPortfolio(null);
+      } else {
+        selectPortfolio(id, tickers);
+      }
+    });
+    el.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); }
+    });
+  });
+
+  elPfList.querySelectorAll(".pf-del").forEach(btn => {
+    btn.addEventListener("click", async e => {
+      e.stopPropagation();
+      await deletePortfolio(btn.dataset.id);
+    });
+  });
+}
+
+function selectPortfolio(id) {
+  activePortfolioId = id;
+  elPfList.querySelectorAll(".pf-item").forEach(el =>
+    el.setAttribute("aria-selected", el.dataset.id === id)
+  );
+  elGoPort.disabled = !id;
+  if (!id) elHistWrap.hidden = true;
+}
+
+async function deletePortfolio(id) {
+  try {
+    const res = await fetch(
+      `/api/portfolios/${encodeURIComponent(id)}?user_id=${encodeURIComponent(userId)}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showInlineError(errHtml("Could not delete portfolio", data.error || ""));
+      return;
+    }
+    if (activePortfolioId === id) {
+      activePortfolioId = null;
+      elGoPort.disabled = true;
+      elHistWrap.hidden = true;
+    }
+    await loadPortfolios();
+  } catch {
+    showInlineError(errHtml("Network error", "Could not delete portfolio. Try again."));
+  }
+}
+
+// ----- Ad-hoc universe -----
+function renderUniverse(filter = "") {
+  const f = filter.trim().toUpperCase();
+  elUniverse.innerHTML = "";
+  UNIVERSE.filter(t => !f || t.includes(f)).forEach(t => {
+    const b = document.createElement("button");
+    b.className = "tick";
+    b.type = "button";
+    b.textContent = t;
+    b.setAttribute("aria-pressed", adhocSelected.has(t));
+    b.onclick = () => {
+      if (adhocSelected.has(t)) adhocSelected.delete(t);
+      else if (adhocSelected.size < MAX) adhocSelected.add(t);
+      else return;
+      b.setAttribute("aria-pressed", adhocSelected.has(t));
+      syncAdhoc();
+    };
+    elUniverse.appendChild(b);
+  });
+}
+
+function syncAdhoc() {
+  const n = adhocSelected.size;
+  elCount.textContent = n + " selected";
+  elGoAdhoc.disabled = n < MIN || n > MAX;
+}
+
+elQ.addEventListener("input", () => renderUniverse(elQ.value));
+
+// ----- Predict: portfolio mode -----
+elGoPort.addEventListener("click", async () => {
+  if (!activePortfolioId) return;
+  elGoPort.disabled = true;
+  elOut.innerHTML = '<p class="empty pulse">Running the model.</p>';
+  elHistWrap.hidden = true;
+
+  try {
+    const res = await fetch("/api/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ user_id: userId, portfolio_id: activePortfolioId })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      elOut.innerHTML = errHtml("Could not build an allocation", data.error || "Unexpected response.");
+    } else {
+      drawAllocation(data);
+      loadHistory(activePortfolioId);
+    }
+  } catch {
+    elOut.innerHTML = errHtml("Network error", "The request did not complete. Try again.");
+  } finally {
+    elGoPort.disabled = !activePortfolioId;
+  }
+});
+
+// ----- Predict: ad-hoc mode -----
+elGoAdhoc.addEventListener("click", async () => {
+  elGoAdhoc.disabled = true;
+  elOut.innerHTML = '<p class="empty pulse">Running the model.</p>';
+
+  try {
+    const res = await fetch("/api/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tickers: [...adhocSelected], user_id: userId })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      elOut.innerHTML = errHtml("Could not build an allocation", data.error || "Unexpected response.");
+    } else {
+      drawAllocation(data);
+    }
+  } catch {
+    elOut.innerHTML = errHtml("Network error", "The request did not complete. Try again.");
+  } finally {
+    syncAdhoc();
+  }
+});
+
+// ----- Draw allocation ribbon + table -----
+function drawAllocation(data) {
+  const rows  = Object.entries(data.weights).sort((a, b) => b[1] - a[1]);
   const total = rows.length;
 
   const segs = rows.map(([t, w], i) =>
-    `<div class="seg" style="flex-grow:${w};background:${colourFor(i, total)}" title="${t} ${(w*100).toFixed(1)}%"></div>`
+    `<div class="seg" style="flex-grow:${w};background:${colourFor(i,total)}" title="${escHtml(t)} ${(w*100).toFixed(1)}%"></div>`
   ).join("");
 
   const legs = rows.map(([t, w]) =>
-    `<div class="leg" style="flex-grow:${w};flex-basis:0"><b>${t}</b>${(w*100).toFixed(1)}%</div>`
+    `<div class="leg" style="flex-grow:${w};flex-basis:0"><b>${escHtml(t)}</b>${(w*100).toFixed(1)}%</div>`
   ).join("");
 
   const trs = rows.map(([t, w], i) =>
-    `<tr><td class="sym"><span class="swatch" style="background:${colourFor(i, total)}"></span>${t}</td>
-     <td class="pct">${(w*100).toFixed(2)}%</td></tr>`
+    `<tr>
+      <td class="sym"><span class="swatch" style="background:${colourFor(i,total)}"></span>${escHtml(t)}</td>
+      <td class="pct">${(w*100).toFixed(2)}%</td>
+    </tr>`
   ).join("");
+
+  const usedBadge = data.used_history
+    ? `<span class="used-hist-badge" title="Model conditioned on prior week's weights">&#x21a9; used prior weights</span>`
+    : "";
 
   elOut.innerHTML = `
     <div class="ribbon">${segs}</div>
     <div class="legend">${legs}</div>
     <div class="stats">
-      <div class="stat"><span>Priced as of</span><b>${data.as_of}</b></div>
+      <div class="stat"><span>Priced as of</span><b>${escHtml(String(data.as_of))}</b></div>
       <div class="stat"><span>Effective positions</span><b>${data.effective_positions ?? "—"}</b></div>
       <div class="stat"><span>Concentration (HHI)</span><b>${data.concentration_hhi ?? "—"}</b></div>
     </div>
-    <table><thead><tr><th>Symbol</th><th style="text-align:right">Weight</th></tr></thead>
-    <tbody>${trs}</tbody></table>`;
+    <table>
+      <thead><tr>
+        <th>Symbol</th>
+        <th style="text-align:right">Weight${usedBadge}</th>
+      </tr></thead>
+      <tbody>${trs}</tbody>
+    </table>`;
 }
 
-elGo.onclick = async () => {
-  elGo.disabled = true;
-  elOut.innerHTML = `<p class="empty pulse">Running the model.</p>`;
+// ----- History -----
+async function loadHistory(portfolioId) {
+  elHistOut.innerHTML = '<p class="empty pulse" style="padding:1rem">Loading history.</p>';
+  elHistWrap.hidden = false;
   try {
-    const res = await fetch("/api/", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ tickers: [...selected], session_id: sessionId })
-    });
-    const data = await res.json();
+    const res = await fetch(
+      `/api/portfolios/${encodeURIComponent(portfolioId)}/history?user_id=${encodeURIComponent(userId)}`
+    );
     if (!res.ok) {
-      elOut.innerHTML = `<div class="error"><b>Could not build an allocation</b>${data.error || "Unexpected response."}</div>`;
-    } else {
-      draw(data);
+      elHistOut.innerHTML = '<p class="empty">History not available yet.</p>';
+      return;
     }
-  } catch (e) {
-    elOut.innerHTML = `<div class="error"><b>Network error</b>The request did not complete. Try again.</div>`;
-  } finally {
-    sync();
+    const data = await res.json();
+    drawHistory(data);
+  } catch {
+    elHistOut.innerHTML = '<p class="empty">History not available yet.</p>';
   }
-};
+}
 
-elQ.oninput = () => render(elQ.value);
-render();
-sync();
+function drawHistory(data) {
+  const weeks = (Array.isArray(data) ? data : (data.weeks || [])).slice(0, 8);
+  if (!weeks.length) {
+    elHistOut.innerHTML = '<p class="empty" style="padding:1rem">No history yet for this portfolio.</p>';
+    return;
+  }
+
+  // Consistent ticker→color mapping across all weeks (alphabetical order)
+  const allTickers = [...new Set(weeks.flatMap(w => Object.keys(w.weights || {})))];
+  const colMap = tickerColourMap(allTickers);
+
+  const rows = weeks.map(week => {
+    const weights = week.weights || {};
+    const entries = Object.entries(weights).sort((a, b) => b[1] - a[1]);
+    const segs = entries.map(([t, w]) =>
+      `<div class="hist-seg" style="flex-grow:${w};background:${colMap[t] || "var(--rule)"}" title="${escHtml(t)} ${(w*100).toFixed(1)}%"></div>`
+    ).join("");
+    const badge = week.used_history
+      ? `<span class="hist-badge used" title="Model conditioned on prior week's weights">&#x21a9; prior wts</span>`
+      : `<span class="hist-badge fresh" aria-hidden="true"></span>`;
+    return `<div class="hist-row">
+      <div class="hist-date">${escHtml(String(week.as_of))}</div>
+      <div class="hist-bar">${segs}</div>
+      ${badge}
+    </div>`;
+  }).join("");
+
+  elHistOut.innerHTML = rows;
+}
+
+// ----- Init -----
+renderUniverse();
+syncAdhoc();
+loadPortfolios();
 </script>
 </body>
 </html>
