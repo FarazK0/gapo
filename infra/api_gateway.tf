@@ -26,6 +26,38 @@ resource "aws_apigatewayv2_route" "predict" {
   target    = "integrations/${aws_apigatewayv2_integration.predict.id}"
 }
 
+# Explicit portfolio routes. More specific routes take precedence over the
+# catch-all, but all target the same predict Lambda integration.
+resource "aws_apigatewayv2_route" "portfolios_post" {
+  api_id    = aws_apigatewayv2_api.predict.id
+  route_key = "POST /api/portfolios"
+  target    = "integrations/${aws_apigatewayv2_integration.predict.id}"
+}
+
+resource "aws_apigatewayv2_route" "portfolios_list" {
+  api_id    = aws_apigatewayv2_api.predict.id
+  route_key = "GET /api/portfolios"
+  target    = "integrations/${aws_apigatewayv2_integration.predict.id}"
+}
+
+resource "aws_apigatewayv2_route" "portfolio_get" {
+  api_id    = aws_apigatewayv2_api.predict.id
+  route_key = "GET /api/portfolios/{portfolio_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.predict.id}"
+}
+
+resource "aws_apigatewayv2_route" "portfolio_delete" {
+  api_id    = aws_apigatewayv2_api.predict.id
+  route_key = "DELETE /api/portfolios/{portfolio_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.predict.id}"
+}
+
+resource "aws_apigatewayv2_route" "portfolio_history" {
+  api_id    = aws_apigatewayv2_api.predict.id
+  route_key = "GET /api/portfolios/{portfolio_id}/history"
+  target    = "integrations/${aws_apigatewayv2_integration.predict.id}"
+}
+
 resource "aws_apigatewayv2_stage" "predict" {
   api_id      = aws_apigatewayv2_api.predict.id
   name        = "$default"

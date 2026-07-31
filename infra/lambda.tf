@@ -43,6 +43,18 @@ data "aws_iam_policy_document" "predict" {
     actions   = ["dynamodb:PutItem", "dynamodb:Query"]
     resources = [aws_dynamodb_table.history.arn]
   }
+  statement {
+    actions = [
+      "dynamodb:PutItem",
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+      "dynamodb:DeleteItem",
+    ]
+    resources = [
+      aws_dynamodb_table.user_portfolios.arn,
+      aws_dynamodb_table.portfolio_history.arn,
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "predict" {
@@ -103,11 +115,12 @@ resource "aws_lambda_function" "predict" {
 
   environment {
     variables = {
-      DATA_BUCKET   = aws_s3_bucket.data.id
-      HISTORY_TABLE = aws_dynamodb_table.history.name
-      MODEL_PATH    = "/opt/model/full_model.pth"
-      UNIVERSE      = join(",", var.universe)
-      LOG_LEVEL     = "INFO"
+      DATA_BUCKET       = aws_s3_bucket.data.id
+      HISTORY_TABLE     = aws_dynamodb_table.history.name
+      PORTFOLIOS_TABLE  = aws_dynamodb_table.user_portfolios.name
+      MODEL_PATH        = "/opt/model/full_model.pth"
+      UNIVERSE          = join(",", var.universe)
+      LOG_LEVEL         = "INFO"
     }
   }
 
