@@ -27,7 +27,7 @@ MAX_ASSETS = 25
 # Imported at module scope on purpose. Lambda gives the init phase full
 # CPU regardless of the configured memory, so importing torch and loading
 # the checkpoint here is meaningfully cheaper than doing it in the handler.
-from core import bundle, predictor  # noqa: E402
+from core import bundle, history as history_mod, predictor, profiles  # noqa: E402
 
 bundle.prime()
 
@@ -101,13 +101,26 @@ def predict(event, context):
     except (ValueError, TypeError):
         return _response(400, {"error": "Request body is not valid JSON."}, was_cold)
 
-    try:
-        tickers = _parse_tickers(payload)
-    except ValueError as exc:
-        return _response(400, {"error": str(exc)}, was_cold)
+    portfolio_id = payload.get("portfolio_id")
+    user_id = payload.get("user_id")
+
+    if portfolio_id and user_id:
+        portfolio = profiles.get_portfolio(str(user_id), str(portfolio_id))
+        if portfolio is None:
+            return _response(404, {"error": "Portfolio not found."}, was_cold)
+        tickers = portfolio["tickers"]
+        hist = history_mod.get_history(str(user_id), str(portfolio_id))
+        used_history = bool(hist)
+    else:
+        try:
+            tickers = _parse_tickers(payload)
+        except ValueError as exc:
+            return _response(400, {"error": str(exc)}, was_cold)
+        hist = None
+        used_history = False
 
     try:
-        result = predictor.run(tickers)
+        result = predictor.run(tickers, history=hist)
     except predictor.StaleDataError as exc:
         # Serve nothing rather than something wrong. A portfolio weight
         # computed from a three week old snapshot is worse than an error.
@@ -116,7 +129,9 @@ def predict(event, context):
         return _response(422, {"error": str(exc)}, was_cold)
     except Exception:
         log.exception("prediction failed")
-        return _response(500, {"error": "Prediction failed. The error has been logged."}, was_cold)
+        return _response(
+            500, {"error": "Prediction failed. The error has been logged."}, was_cold
+        )
 
     elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
 
@@ -127,14 +142,24 @@ def predict(event, context):
         "as_of": result["as_of"],
         "model_sha256": predictor.MODEL_SHA[:12],
         "elapsed_ms": elapsed_ms,
+        "used_history": used_history,
     }
 
-    _save_history(payload.get("session_id"), record)
+    if portfolio_id and user_id:
+        weights_list = [result["weights"][t] for t in tickers]
+        returns_list = [0.0] * len(tickers)
+        history_mod.save_prediction(
+            str(user_id), str(portfolio_id), result["as_of"],
+            weights_list, returns_list,
+        )
+    else:
+        _save_history(payload.get("session_id"), record)
 
     # Structured so CloudWatch Logs Insights can aggregate it directly.
     log.info(json.dumps({
         "event": "predict", "n": len(tickers),
         "ms": elapsed_ms, "cold": was_cold,
+        "portfolio": bool(portfolio_id),
     }))
     return _response(200, record, was_cold)
 
