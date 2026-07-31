@@ -31,7 +31,10 @@ log = logging.getLogger("gapo.predictor")
 
 # Lambda path in production; local repo path for development.
 _LOCAL_DEFAULT = str(
-    Path(__file__).parents[2] / "protraderbot" / "InferenceApplication" / "full_model.pth"
+    Path(__file__).parents[2]
+    / "protraderbot"
+    / "InferenceApplication"
+    / "full_model.pth"
 )
 MODEL_PATH = os.environ.get("MODEL_PATH", _LOCAL_DEFAULT)
 SHA_PATH = os.environ.get("SHA_PATH", "/opt/model/model.sha256")
@@ -89,7 +92,9 @@ def _load_model():
         state = loaded.get("state_dict", loaded) if isinstance(loaded, dict) else loaded
         missing, unexpected = model.load_state_dict(state, strict=False)
         if missing or unexpected:
-            log.error("state_dict mismatch: missing=%s unexpected=%s", missing, unexpected)
+            log.error(
+                "state_dict mismatch: missing=%s unexpected=%s", missing, unexpected
+            )
             raise RuntimeError(
                 "Checkpoint does not match the model definition. "
                 f"Missing keys: {list(missing)[:5]}. "
@@ -107,16 +112,26 @@ _MODEL = _load_model()
 log.info("model loaded, sha256=%s", MODEL_SHA[:12])
 
 
-def _forward(x: torch.Tensor, edge_index: torch.Tensor, edge_attr: torch.Tensor):
+def _forward(
+    x: torch.Tensor,
+    edge_index: torch.Tensor,
+    edge_attr: torch.Tensor,
+    history=None,
+):
     """Single place where the model's calling convention is expressed."""
-    return _MODEL(x, edge_index, edge_attr, history=[])
+    hist = history if history is not None else []
+    return _MODEL(x, edge_index, edge_attr, history=hist)
 
 
-def run(tickers: list) -> dict:
+def run(tickers: list, history=None) -> dict:
     """Pure-ish prediction. Reads the in-memory bundle, returns weights.
 
     Zero network calls on the happy path. Everything this needs was
     computed once by the ingest job and loaded once at container init.
+
+    history: optional list of (weights_tensor, returns_tensor) pairs from
+    prior predictions. Passed to the model's PortfolioMemory for regret
+    conditioning. Defaults to [] when not provided.
     """
     snap = bundle.get()
     x_np = snap.select(tickers)
@@ -125,7 +140,7 @@ def run(tickers: list) -> dict:
 
     edge_index, edge_attr = graph.build_edge_index(x_np)
 
-    raw = _forward(x, edge_index, edge_attr)
+    raw = _forward(x, edge_index, edge_attr, history=history)
     weights = raw.detach().cpu().numpy().reshape(-1).astype(np.float64)
 
     # Defensive normalisation. The model should already emit a simplex,
