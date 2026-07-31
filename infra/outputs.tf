@@ -31,3 +31,11 @@ output "api_gateway_url" {
   description = "API Gateway invoke URL (fronted by CloudFront at /api/*)"
   value       = aws_apigatewayv2_stage.predict.invoke_url
 }
+
+output "user_portfolios_table" {
+  value = aws_dynamodb_table.user_portfolios.name
+}
+
+output "portfolio_history_table" {
+  value = aws_dynamodb_table.portfolio_history.name
+}
