@@ -40,10 +40,6 @@ data "aws_iam_policy_document" "predict" {
     resources = [aws_s3_bucket.data.arn, "${aws_s3_bucket.data.arn}/*"]
   }
   statement {
-    actions   = ["dynamodb:PutItem", "dynamodb:Query"]
-    resources = [aws_dynamodb_table.history.arn]
-  }
-  statement {
     actions = [
       "dynamodb:PutItem",
       "dynamodb:GetItem",
@@ -116,7 +112,7 @@ resource "aws_lambda_function" "predict" {
   environment {
     variables = {
       DATA_BUCKET       = aws_s3_bucket.data.id
-      HISTORY_TABLE     = aws_dynamodb_table.history.name
+      HISTORY_TABLE     = aws_dynamodb_table.portfolio_history.name
       PORTFOLIOS_TABLE  = aws_dynamodb_table.user_portfolios.name
       MODEL_PATH        = "/opt/model/full_model.pth"
       UNIVERSE          = join(",", var.universe)

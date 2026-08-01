@@ -1,8 +1,8 @@
 """Prediction history backed by DynamoDB.
 
 Table schema (HISTORY_TABLE):
-  PK  pk      "{user_id}#{portfolio_id}"  (string)
-  SK  as_of   ISO date string             (string, for chronological ordering)
+  PK  portfolio_pk  "{user_id}#{portfolio_id}"  (string)
+  SK  as_of         ISO date string             (string, for chronological ordering)
 
 Gracefully no-ops when HISTORY_TABLE is unset so local dev and unit
 tests that don't configure DynamoDB still work.
@@ -31,6 +31,7 @@ def save_prediction(
     as_of: str,
     weights,
     returns,
+    used_history: bool = False,
 ) -> None:
     """Persist a prediction outcome. Best-effort — never raises."""
     table = _table()
@@ -50,10 +51,11 @@ def save_prediction(
         expires = datetime.now(timezone.utc) + timedelta(days=180)
         table.put_item(
             Item={
-                "pk": f"{user_id}#{portfolio_id}",
+                "portfolio_pk": f"{user_id}#{portfolio_id}",
                 "as_of": as_of,
                 "weights": weights_list,
                 "returns": returns_list,
+                "used_history": used_history,
                 "expires_at": int(expires.timestamp()),
             }
         )
@@ -70,7 +72,7 @@ def get_history(user_id: str, portfolio_id: str, n: int = 8) -> list:
         from boto3.dynamodb.conditions import Key
 
         resp = table.query(
-            KeyConditionExpression=Key("pk").eq(f"{user_id}#{portfolio_id}"),
+            KeyConditionExpression=Key("portfolio_pk").eq(f"{user_id}#{portfolio_id}"),
             ScanIndexForward=False,  # newest first
             Limit=n,
         )
@@ -83,4 +85,36 @@ def get_history(user_id: str, portfolio_id: str, n: int = 8) -> list:
         return result
     except Exception:
         log.warning("history get_history failed", exc_info=True)
+        return []
+
+
+def get_history_for_display(user_id: str, portfolio_id: str, tickers: list = None, n: int = 8) -> list:
+    """Return history items in UI-friendly format (dict weights, not tensors)."""
+    table = _table()
+    if table is None:
+        return []
+    try:
+        from boto3.dynamodb.conditions import Key
+
+        resp = table.query(
+            KeyConditionExpression=Key("portfolio_pk").eq(f"{user_id}#{portfolio_id}"),
+            ScanIndexForward=False,
+            Limit=n,
+        )
+        items = list(reversed(resp.get("Items", [])))
+        result = []
+        for item in items:
+            weights_list = [float(v) for v in item.get("weights", [])]
+            if tickers and len(tickers) == len(weights_list):
+                weights_dict = {t: round(w, 6) for t, w in zip(tickers, weights_list)}
+            else:
+                weights_dict = {str(i): round(w, 6) for i, w in enumerate(weights_list)}
+            result.append({
+                "as_of": item.get("as_of", ""),
+                "weights": weights_dict,
+                "used_history": bool(item.get("used_history", False)),
+            })
+        return result
+    except Exception:
+        log.warning("get_history_for_display failed", exc_info=True)
         return []
