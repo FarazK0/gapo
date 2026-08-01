@@ -80,6 +80,89 @@ def _parse_tickers(payload):
     return cleaned
 
 
+def _handle_portfolios(event, raw_path, method):
+    """Route portfolio CRUD requests from API Gateway v2."""
+    parts = [p for p in raw_path.split("/") if p]
+    try:
+        port_idx = parts.index("portfolios")
+    except ValueError:
+        return _response(404, {"error": "Not found."})
+
+    tail = parts[port_idx + 1:]
+    query = event.get("queryStringParameters") or {}
+
+    if not tail:
+        # /api/portfolios
+        if method == "POST":
+            return _create_portfolio(event)
+        if method == "GET":
+            user_id = query.get("user_id", "")
+            if not user_id:
+                return _response(400, {"error": "user_id is required."})
+            items = profiles.list_portfolios(user_id)
+            for it in items:
+                it.setdefault("id", it.get("portfolio_id", ""))
+            return _response(200, items)
+        return _response(405, {"error": "Method not allowed."})
+
+    portfolio_id = tail[0]
+
+    if len(tail) == 1 and method == "DELETE":
+        # /api/portfolios/{id}
+        user_id = query.get("user_id", "")
+        if not user_id:
+            return _response(400, {"error": "user_id is required."})
+        profiles.delete_portfolio(user_id, portfolio_id)
+        return _response(200, {"deleted": True})
+
+    if len(tail) == 2 and tail[1] == "history" and method == "GET":
+        # /api/portfolios/{id}/history
+        user_id = query.get("user_id", "")
+        if not user_id:
+            return _response(400, {"error": "user_id is required."})
+        portfolio = profiles.get_portfolio(user_id, portfolio_id)
+        if portfolio is None:
+            return _response(404, {"error": "Portfolio not found."})
+        tickers = portfolio.get("tickers", [])
+        weeks = history_mod.get_history_for_display(user_id, portfolio_id, tickers)
+        return _response(200, weeks)
+
+    return _response(404, {"error": "Not found."})
+
+
+def _create_portfolio(event):
+    """Handle POST /api/portfolios."""
+    try:
+        body = event.get("body") or "{}"
+        if event.get("isBase64Encoded"):
+            import base64
+            body = base64.b64decode(body).decode()
+        payload = json.loads(body)
+    except (ValueError, TypeError):
+        return _response(400, {"error": "Request body is not valid JSON."})
+
+    user_id = str(payload.get("user_id") or "")
+    name = str(payload.get("name") or "")
+    tickers = payload.get("tickers")
+
+    if not user_id:
+        return _response(400, {"error": "user_id is required."})
+    if not isinstance(tickers, list):
+        return _response(400, {"error": "tickers must be a list."})
+
+    try:
+        tickers = _parse_tickers({"tickers": tickers})
+    except ValueError as exc:
+        return _response(400, {"error": str(exc)})
+
+    item = profiles.create_portfolio(user_id, name, tickers)
+    if not item:
+        return _response(503, {"error": "Portfolio store not available."})
+
+    item.setdefault("id", item.get("portfolio_id", ""))
+    return _response(200, item)
+
+
 def predict(event, context):
     # The warmer rule invokes with this payload. Returning immediately
     # keeps the container alive without touching S3 or DynamoDB.
@@ -88,6 +171,12 @@ def predict(event, context):
 
     if event.get("warmup"):
         return {"warm": True, "was_cold": was_cold}
+
+    # Route portfolio CRUD requests (API Gateway v2 HTTP API events)
+    raw_path = event.get("rawPath", "")
+    if "/portfolios" in raw_path:
+        method = (event.get("requestContext") or {}).get("http", {}).get("method", "GET")
+        return _handle_portfolios(event, raw_path, method)
 
     started = time.perf_counter()
 
@@ -150,7 +239,7 @@ def predict(event, context):
         returns_list = [0.0] * len(tickers)
         history_mod.save_prediction(
             str(user_id), str(portfolio_id), result["as_of"],
-            weights_list, returns_list,
+            weights_list, returns_list, used_history=used_history,
         )
     else:
         _save_history(payload.get("session_id"), record)
